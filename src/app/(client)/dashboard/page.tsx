@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { FolderKanban } from "lucide-react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { ProjectCard } from "@/components/client/project-card";
+import { DigestCard } from "@/components/client/digest-card";
 import { EmptyState } from "@/components/shared/empty-state";
 
 export default async function DashboardPage() {
@@ -47,6 +48,9 @@ export default async function DashboardPage() {
           {activeProjects.length === 1 ? "project" : "projects"} in progress
         </p>
       </div>
+
+      {/* Smart digest */}
+      <DigestCard />
 
       {/* Projects grid */}
       {(projects ?? []).length === 0 ? (
