@@ -271,6 +271,108 @@ export type Database = {
         };
         Relationships: [];
       };
+      approvals: {
+        Row: {
+          id: string;
+          project_id: string;
+          title: string;
+          description: string | null;
+          type: "deliverable" | "scope_change" | "budget" | "timeline" | "data_submission";
+          status: "pending" | "approved" | "rejected";
+          requested_by: string;
+          decided_by: string | null;
+          decided_at: string | null;
+          linked_document_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          title: string;
+          description?: string | null;
+          type: "deliverable" | "scope_change" | "budget" | "timeline" | "data_submission";
+          status?: "pending" | "approved" | "rejected";
+          requested_by: string;
+          decided_by?: string | null;
+          decided_at?: string | null;
+          linked_document_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          title?: string;
+          description?: string | null;
+          type?: "deliverable" | "scope_change" | "budget" | "timeline" | "data_submission";
+          status?: "pending" | "approved" | "rejected";
+          requested_by?: string;
+          decided_by?: string | null;
+          decided_at?: string | null;
+          linked_document_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      comments: {
+        Row: {
+          id: string;
+          project_id: string;
+          user_id: string;
+          user_type: "client" | "admin";
+          body: string;
+          target_type: "document" | "approval" | "milestone";
+          target_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          user_id: string;
+          user_type: "client" | "admin";
+          body: string;
+          target_type: "document" | "approval" | "milestone";
+          target_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          user_id?: string;
+          user_type?: "client" | "admin";
+          body?: string;
+          target_type?: "document" | "approval" | "milestone";
+          target_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      digest_cache: {
+        Row: {
+          id: string;
+          user_id: string;
+          period_start: string;
+          period_end: string;
+          summary: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          period_start: string;
+          period_end: string;
+          summary: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          period_start?: string;
+          period_end?: string;
+          summary?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -285,3 +387,6 @@ export type Project = Database["public"]["Tables"]["projects"]["Row"];
 export type Document = Database["public"]["Tables"]["documents"]["Row"];
 export type ActivityLog = Database["public"]["Tables"]["activity_log"]["Row"];
 export type Notification = Database["public"]["Tables"]["notifications"]["Row"];
+export type Approval = Database["public"]["Tables"]["approvals"]["Row"];
+export type Comment = Database["public"]["Tables"]["comments"]["Row"];
+export type DigestCache = Database["public"]["Tables"]["digest_cache"]["Row"];

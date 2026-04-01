@@ -39,6 +39,20 @@ export const DOCUMENT_TYPES = {
   working_doc: { label: "Working Doc" },
 } as const;
 
+export const APPROVAL_TYPES = {
+  deliverable: { label: "Deliverable", color: "bg-blue-500" },
+  scope_change: { label: "Scope Change", color: "bg-orange-500" },
+  budget: { label: "Budget", color: "bg-green-500" },
+  timeline: { label: "Timeline", color: "bg-purple-500" },
+  data_submission: { label: "Data Submission", color: "bg-teal-500" },
+} as const;
+
+export const APPROVAL_STATUSES = {
+  pending: { label: "Pending", color: "bg-yellow-500" },
+  approved: { label: "Approved", color: "bg-green-500" },
+  rejected: { label: "Rejected", color: "bg-red-500" },
+} as const;
+
 export type NavItem = {
   label: string;
   href: string;
@@ -61,5 +75,6 @@ export const CLIENT_NAV_ITEMS: NavItem[] = [
 export const ADMIN_NAV_ITEMS: NavItem[] = [
   { label: "Clients", href: "/admin/clients", icon: Users },
   { label: "Projects", href: "/admin/projects", icon: FolderKanban },
+  { label: "Approvals", href: "/admin/approvals", icon: CheckCircle },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
