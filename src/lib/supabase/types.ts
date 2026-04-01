@@ -373,6 +373,159 @@ export type Database = {
         };
         Relationships: [];
       };
+      invoices: {
+        Row: {
+          id: string;
+          org_id: string;
+          zoho_invoice_id: string | null;
+          invoice_number: string;
+          amount: number;
+          currency: string;
+          status: "pending" | "paid" | "overdue" | "partially_paid";
+          due_date: string | null;
+          payment_url: string | null;
+          synced_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          zoho_invoice_id?: string | null;
+          invoice_number: string;
+          amount: number;
+          currency?: string;
+          status?: "pending" | "paid" | "overdue" | "partially_paid";
+          due_date?: string | null;
+          payment_url?: string | null;
+          synced_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          zoho_invoice_id?: string | null;
+          invoice_number?: string;
+          amount?: number;
+          currency?: string;
+          status?: "pending" | "paid" | "overdue" | "partially_paid";
+          due_date?: string | null;
+          payment_url?: string | null;
+          synced_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      meetings: {
+        Row: {
+          id: string;
+          org_id: string;
+          project_id: string | null;
+          title: string;
+          scheduled_at: string;
+          duration_minutes: number;
+          booked_by: string;
+          pm_id: string;
+          status: "scheduled" | "completed" | "cancelled";
+          notes: string | null;
+          google_calendar_event_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          project_id?: string | null;
+          title: string;
+          scheduled_at: string;
+          duration_minutes?: number;
+          booked_by: string;
+          pm_id: string;
+          status?: "scheduled" | "completed" | "cancelled";
+          notes?: string | null;
+          google_calendar_event_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          project_id?: string | null;
+          title?: string;
+          scheduled_at?: string;
+          duration_minutes?: number;
+          booked_by?: string;
+          pm_id?: string;
+          status?: "scheduled" | "completed" | "cancelled";
+          notes?: string | null;
+          google_calendar_event_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      esg_metrics: {
+        Row: {
+          id: string;
+          project_id: string;
+          metric_name: string;
+          value: number;
+          unit: string | null;
+          recorded_at: string;
+          period: string;
+          source: "manual" | "computed";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          metric_name: string;
+          value: number;
+          unit?: string | null;
+          recorded_at?: string;
+          period: string;
+          source?: "manual" | "computed";
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          metric_name?: string;
+          value?: number;
+          unit?: string | null;
+          recorded_at?: string;
+          period?: string;
+          source?: "manual" | "computed";
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      app_shortcuts: {
+        Row: {
+          id: string;
+          org_id: string;
+          label: string;
+          url: string;
+          icon: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          label: string;
+          url: string;
+          icon?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          label?: string;
+          url?: string;
+          icon?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -390,3 +543,7 @@ export type Notification = Database["public"]["Tables"]["notifications"]["Row"];
 export type Approval = Database["public"]["Tables"]["approvals"]["Row"];
 export type Comment = Database["public"]["Tables"]["comments"]["Row"];
 export type DigestCache = Database["public"]["Tables"]["digest_cache"]["Row"];
+export type Invoice = Database["public"]["Tables"]["invoices"]["Row"];
+export type Meeting = Database["public"]["Tables"]["meetings"]["Row"];
+export type EsgMetric = Database["public"]["Tables"]["esg_metrics"]["Row"];
+export type AppShortcut = Database["public"]["Tables"]["app_shortcuts"]["Row"];

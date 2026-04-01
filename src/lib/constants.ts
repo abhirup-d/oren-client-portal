@@ -53,6 +53,19 @@ export const APPROVAL_STATUSES = {
   rejected: { label: "Rejected", color: "bg-red-500" },
 } as const;
 
+export const INVOICE_STATUSES = {
+  pending: { label: "Pending", color: "bg-yellow-500" },
+  paid: { label: "Paid", color: "bg-green-500" },
+  overdue: { label: "Overdue", color: "bg-red-500" },
+  partially_paid: { label: "Partial", color: "bg-orange-500" },
+} as const;
+
+export const MEETING_STATUSES = {
+  scheduled: { label: "Scheduled", color: "bg-blue-500" },
+  completed: { label: "Completed", color: "bg-green-500" },
+  cancelled: { label: "Cancelled", color: "bg-red-500" },
+} as const;
+
 export type NavItem = {
   label: string;
   href: string;
@@ -76,5 +89,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { label: "Clients", href: "/admin/clients", icon: Users },
   { label: "Projects", href: "/admin/projects", icon: FolderKanban },
   { label: "Approvals", href: "/admin/approvals", icon: CheckCircle },
+  { label: "Metrics", href: "/admin/metrics", icon: BarChart3 },
+  { label: "Apps", href: "/admin/apps", icon: ExternalLink },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
