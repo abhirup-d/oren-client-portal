@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FileText, CheckSquare, MessageSquare } from "lucide-react";
+import { FileText, CheckSquare, MessageSquare, BarChart3 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TypeBadge } from "@/components/shared/type-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -11,9 +11,10 @@ import { PhaseTimeline } from "@/components/client/phase-timeline";
 import { DocumentRow } from "@/components/client/document-row";
 import { ApprovalCard } from "@/components/client/approval-card";
 import { CommentThread } from "@/components/client/comment-thread";
+import { MetricsLineChart, MetricsBarChart, MetricsSummary } from "@/components/client/metrics-chart";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PROJECT_TYPES, PROJECT_STATUSES } from "@/lib/constants";
-import type { Project, Document, Approval } from "@/lib/supabase/types";
+import type { Project, Document, Approval, EsgMetric } from "@/lib/supabase/types";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -23,6 +24,7 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [esgMetrics, setEsgMetrics] = useState<EsgMetric[]>([]);
   const [loading, setLoading] = useState(true);
 
   const supabase = createClient();
@@ -39,7 +41,7 @@ export default function ProjectDetailPage() {
       return;
     }
 
-    const [{ data: docs }, { data: approvalsData }] = await Promise.all([
+    const [{ data: docs }, { data: approvalsData }, { data: metricsData }] = await Promise.all([
       supabase
         .from("documents")
         .select("*")
@@ -50,11 +52,17 @@ export default function ProjectDetailPage() {
         .select("*")
         .eq("project_id", id)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("esg_metrics")
+        .select("*")
+        .eq("project_id", id)
+        .order("period", { ascending: true }),
     ]);
 
     setProject(proj);
     setDocuments(docs ?? []);
     setApprovals(approvalsData ?? []);
+    setEsgMetrics(metricsData ?? []);
     setLoading(false);
   }, [id, router, supabase]);
 
@@ -156,6 +164,10 @@ export default function ProjectDetailPage() {
               <MessageSquare className="h-3.5 w-3.5 mr-1" />
               Comments
             </TabsTrigger>
+            <TabsTrigger value="metrics">
+              <BarChart3 className="h-3.5 w-3.5 mr-1" />
+              Metrics
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="deliverables" className="mt-4">
@@ -222,6 +234,41 @@ export default function ProjectDetailPage() {
                 targetId={id}
               />
             </div>
+          </TabsContent>
+
+          <TabsContent value="metrics" className="mt-4">
+            {esgMetrics.length === 0 ? (
+              <EmptyState
+                icon={BarChart3}
+                title="No metrics yet"
+                description="ESG metrics recorded by Oren for this project will appear here."
+              />
+            ) : (
+              <div className="space-y-4">
+                <MetricsSummary metrics={esgMetrics} />
+                {(() => {
+                  // Group metrics by name; show line chart for metrics with multiple periods
+                  const byName: Record<string, EsgMetric[]> = {};
+                  for (const m of esgMetrics) {
+                    if (!byName[m.metric_name]) byName[m.metric_name] = [];
+                    byName[m.metric_name].push(m);
+                  }
+                  const timeSeries = Object.entries(byName).filter(([, ms]) => ms.length > 1);
+                  const snapshots = Object.entries(byName).filter(([, ms]) => ms.length === 1).map(([, ms]) => ms[0]);
+
+                  return (
+                    <>
+                      {timeSeries.map(([name, ms]) => (
+                        <MetricsLineChart key={name} title={name} metrics={ms} />
+                      ))}
+                      {snapshots.length > 0 && (
+                        <MetricsBarChart title="Snapshot Metrics" metrics={snapshots} />
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
