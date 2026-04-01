@@ -2,16 +2,18 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FileText } from "lucide-react";
+import { FileText, CheckSquare, MessageSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TypeBadge } from "@/components/shared/type-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PhaseTimeline } from "@/components/client/phase-timeline";
 import { DocumentRow } from "@/components/client/document-row";
+import { ApprovalCard } from "@/components/client/approval-card";
+import { CommentThread } from "@/components/client/comment-thread";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PROJECT_TYPES, PROJECT_STATUSES } from "@/lib/constants";
-import type { Project, Document } from "@/lib/supabase/types";
+import type { Project, Document, Approval } from "@/lib/supabase/types";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -20,6 +22,7 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [approvals, setApprovals] = useState<Approval[]>([]);
   const [loading, setLoading] = useState(true);
 
   const supabase = createClient();
@@ -36,14 +39,22 @@ export default function ProjectDetailPage() {
       return;
     }
 
-    const { data: docs } = await supabase
-      .from("documents")
-      .select("*")
-      .eq("project_id", id)
-      .order("created_at", { ascending: false });
+    const [{ data: docs }, { data: approvalsData }] = await Promise.all([
+      supabase
+        .from("documents")
+        .select("*")
+        .eq("project_id", id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("approvals")
+        .select("*")
+        .eq("project_id", id)
+        .order("created_at", { ascending: false }),
+    ]);
 
     setProject(proj);
     setDocuments(docs ?? []);
+    setApprovals(approvalsData ?? []);
     setLoading(false);
   }, [id, router, supabase]);
 
@@ -58,6 +69,28 @@ export default function ProjectDetailPage() {
 
     if (data?.signedUrl) {
       window.open(data.signedUrl, "_blank");
+    }
+  }
+
+  async function handleApprovalDecision(
+    approvalId: string,
+    status: "approved" | "rejected",
+    comment: string
+  ) {
+    const response = await fetch(`/api/approvals/${approvalId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, comment }),
+    });
+
+    if (response.ok) {
+      // Refresh approvals
+      const { data: approvalsData } = await supabase
+        .from("approvals")
+        .select("*")
+        .eq("project_id", id)
+        .order("created_at", { ascending: false });
+      setApprovals(approvalsData ?? []);
     }
   }
 
@@ -77,6 +110,7 @@ export default function ProjectDetailPage() {
   const statusConfig = PROJECT_STATUSES[project.status];
   const deliverables = documents.filter((d) => d.type === "deliverable");
   const workingDocs = documents.filter((d) => d.type === "working_doc");
+  const pendingApprovals = approvals.filter((a) => a.status === "pending");
 
   return (
     <div className="space-y-6">
@@ -100,9 +134,8 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Documents tabs */}
+      {/* Tabs */}
       <div>
-        <h2 className="text-sm font-semibold text-foreground mb-3">Documents</h2>
         <Tabs defaultValue="deliverables">
           <TabsList>
             <TabsTrigger value="deliverables">
@@ -110,6 +143,18 @@ export default function ProjectDetailPage() {
             </TabsTrigger>
             <TabsTrigger value="working">
               Working Docs ({workingDocs.length})
+            </TabsTrigger>
+            <TabsTrigger value="approvals">
+              Approvals
+              {pendingApprovals.length > 0 && (
+                <span className="ml-1.5 rounded-full bg-orange-500 text-white text-xs px-1.5 py-0.5 leading-none">
+                  {pendingApprovals.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="comments">
+              <MessageSquare className="h-3.5 w-3.5 mr-1" />
+              Comments
             </TabsTrigger>
           </TabsList>
 
@@ -143,6 +188,40 @@ export default function ProjectDetailPage() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="approvals" className="mt-4">
+            {approvals.length === 0 ? (
+              <EmptyState
+                icon={CheckSquare}
+                title="No approvals yet"
+                description="Approval requests from Oren will appear here for your review."
+              />
+            ) : (
+              <div className="space-y-4">
+                {approvals.map((approval) => (
+                  <ApprovalCard
+                    key={approval.id}
+                    approval={approval}
+                    projectTitle={project.title}
+                    onDecision={handleApprovalDecision}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="comments" className="mt-4">
+            <div className="rounded-lg border border-border bg-card p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-4">
+                Project Discussion
+              </h3>
+              <CommentThread
+                projectId={id}
+                targetType="milestone"
+                targetId={id}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </div>
