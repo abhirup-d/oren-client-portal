@@ -23,6 +23,28 @@ export async function GET(request: Request) {
       if (type === "admin") {
         return NextResponse.redirect(`${origin}/admin/clients`);
       }
+
+      // For non-admin users, check if their org needs onboarding
+      if (user) {
+        const { data: profile } = await supabase
+          .from("users")
+          .select("org_id")
+          .eq("id", user.id)
+          .single();
+
+        if (profile) {
+          const { data: org } = await supabase
+            .from("organizations")
+            .select("onboarding_completed")
+            .eq("id", profile.org_id)
+            .single();
+
+          if (org && !org.onboarding_completed) {
+            return NextResponse.redirect(`${origin}/onboarding`);
+          }
+        }
+      }
+
       return NextResponse.redirect(`${origin}/dashboard`);
     }
   }
