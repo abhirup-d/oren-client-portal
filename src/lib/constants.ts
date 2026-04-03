@@ -39,6 +39,20 @@ export const DOCUMENT_TYPES = {
   working_doc: { label: "Working Doc" },
 } as const;
 
+export const DOCUMENT_CATEGORIES = {
+  engagement: { label: "Engagement Documents" },
+  project: { label: "Project Documents" },
+} as const;
+
+export const ENGAGEMENT_TYPES = {
+  purchase_order: { label: "Purchase Order" },
+  scope_of_work: { label: "Scope of Work" },
+  nda: { label: "NDA" },
+  msa: { label: "Master Service Agreement" },
+  proposal: { label: "Proposal" },
+  other: { label: "Other" },
+} as const;
+
 export const APPROVAL_TYPES = {
   deliverable: { label: "Deliverable", color: "bg-blue-500" },
   scope_change: { label: "Scope Change", color: "bg-orange-500" },

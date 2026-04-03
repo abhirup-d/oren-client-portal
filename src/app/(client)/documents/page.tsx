@@ -1,174 +1,257 @@
-"use client";
-
-import { useEffect, useState, useCallback } from "react";
-import { FileText, Search } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { DocumentRow } from "@/components/client/document-row";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import {
+  DOCUMENT_STATUSES,
+  DOCUMENT_TYPES,
+  ENGAGEMENT_TYPES,
+} from "@/lib/constants";
+import { formatDate, formatFileSize } from "@/lib/utils";
+import { FileText, FolderOpen } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Input } from "@/components/ui/input";
-import { DOCUMENT_STATUSES, DOCUMENT_TYPES } from "@/lib/constants";
-import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/components/shared/status-badge";
 import type { Document } from "@/lib/supabase/types";
+import { DocumentActions, DownloadButton } from "./document-actions";
 
-type DocumentWithProject = Document & { projectTitle: string };
+type DocumentWithProject = Document & { projectTitle: string | null };
 
-export default function DocumentsPage() {
-  const [allDocuments, setAllDocuments] = useState<DocumentWithProject[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+export default async function DocumentsPage() {
+  const supabase = await createServerSupabaseClient();
 
-  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const fetchDocuments = useCallback(async () => {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return;
-
-    const { data: profile } = await supabase
-      .from("users")
-      .select("org_id")
-      .eq("id", userData.user.id)
-      .single();
-
-    if (!profile) return;
-
-    // Fetch projects for this org
-    const { data: projects } = await supabase
-      .from("projects")
-      .select("id, title")
-      .eq("org_id", profile.org_id);
-
-    if (!projects || projects.length === 0) {
-      setLoading(false);
-      return;
-    }
-
-    const projectIds = projects.map((p) => p.id);
-    const projectMap = Object.fromEntries(projects.map((p) => [p.id, p.title]));
-
-    const { data: docs } = await supabase
-      .from("documents")
-      .select("*")
-      .in("project_id", projectIds)
-      .order("created_at", { ascending: false });
-
-    const withProject: DocumentWithProject[] = (docs ?? []).map((doc) => ({
-      ...doc,
-      projectTitle: projectMap[doc.project_id] ?? "Unknown Project",
-    }));
-
-    setAllDocuments(withProject);
-    setLoading(false);
-  }, [supabase]);
-
-  useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
-
-  async function handleDownload(doc: Document) {
-    const { data } = await supabase.storage
-      .from("documents")
-      .createSignedUrl(doc.file_path, 60);
-
-    if (data?.signedUrl) {
-      window.open(data.signedUrl, "_blank");
-    }
+  if (!user) {
+    redirect("/login");
   }
 
-  const filtered = allDocuments.filter((doc) => {
-    const matchSearch =
-      search === "" ||
-      doc.title.toLowerCase().includes(search.toLowerCase()) ||
-      doc.projectTitle.toLowerCase().includes(search.toLowerCase());
-    const matchType = typeFilter === "all" || doc.type === typeFilter;
-    const matchStatus = statusFilter === "all" || doc.status === statusFilter;
-    return matchSearch && matchType && matchStatus;
-  });
+  const { data: profile } = await supabase
+    .from("users")
+    .select("org_id")
+    .eq("id", user.id)
+    .single();
 
-  const selectClass = cn(
-    "h-8 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none",
-    "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
-    "dark:bg-input/30"
+  if (!profile) {
+    redirect("/login");
+  }
+
+  const orgId = profile.org_id;
+
+  // Fetch all documents for this org
+  const { data: allDocs } = await supabase
+    .from("documents")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false });
+
+  // Fetch projects for this org (needed for project title mapping and upload form)
+  const { data: projects } = await supabase
+    .from("projects")
+    .select("id, title")
+    .eq("org_id", orgId)
+    .order("title", { ascending: true });
+
+  const projectMap = Object.fromEntries(
+    (projects ?? []).map((p) => [p.id, p.title])
   );
 
+  const documents: DocumentWithProject[] = (allDocs ?? []).map((doc) => ({
+    ...doc,
+    projectTitle: doc.project_id ? (projectMap[doc.project_id] ?? null) : null,
+  }));
+
+  // Split into engagement and project documents
+  const engagementDocs = documents.filter((d) => d.category === "engagement");
+  const projectDocs = documents.filter((d) => d.category === "project");
+
+  // Group project docs by project
+  const projectGroups: Record<string, { title: string; docs: DocumentWithProject[] }> = {};
+  for (const doc of projectDocs) {
+    const key = doc.project_id ?? "unknown";
+    if (!projectGroups[key]) {
+      projectGroups[key] = {
+        title: doc.projectTitle ?? "Unknown Project",
+        docs: [],
+      };
+    }
+    projectGroups[key].docs.push(doc);
+  }
+
+  const projectList = (projects ?? []).map((p) => ({
+    id: p.id,
+    title: p.title,
+  }));
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Documents</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          All documents across your projects
-        </p>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Documents</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            All documents across your engagements and projects
+          </p>
+        </div>
+        <DocumentActions projects={projectList} />
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="Search documents..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-8"
+      {/* Group 1: Engagement Documents */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">
+          Engagement Documents ({engagementDocs.length})
+        </h2>
+
+        {engagementDocs.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="No engagement documents"
+            description="Organization-level documents like purchase orders, NDAs, and contracts will appear here."
           />
-        </div>
+        ) : (
+          <div className="space-y-2">
+            {engagementDocs.map((doc) => (
+              <EngagementDocRow key={doc.id} document={doc} />
+            ))}
+          </div>
+        )}
+      </section>
 
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className={selectClass}
-          aria-label="Filter by type"
-        >
-          <option value="all">All types</option>
-          {Object.entries(DOCUMENT_TYPES).map(([key, val]) => (
-            <option key={key} value={key}>
-              {val.label}
-            </option>
-          ))}
-        </select>
+      {/* Group 2: Project Documents */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">
+          Project Documents ({projectDocs.length})
+        </h2>
 
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className={selectClass}
-          aria-label="Filter by status"
-        >
-          <option value="all">All statuses</option>
-          {Object.entries(DOCUMENT_STATUSES).map(([key, val]) => (
-            <option key={key} value={key}>
-              {val.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Document list */}
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title={allDocuments.length === 0 ? "No documents yet" : "No results found"}
-          description={
-            allDocuments.length === 0
-              ? "Documents shared by Oren will appear here."
-              : "Try adjusting your search or filters."
-          }
-        />
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((doc) => (
-            <div key={doc.id} className="space-y-0.5">
-              <p className="text-xs text-muted-foreground px-1">{doc.projectTitle}</p>
-              <DocumentRow document={doc} onDownload={handleDownload} />
-            </div>
-          ))}
-        </div>
-      )}
+        {projectDocs.length === 0 ? (
+          <EmptyState
+            icon={FolderOpen}
+            title="No project documents"
+            description="Documents related to your projects will appear here."
+          />
+        ) : (
+          <div className="space-y-4">
+            {Object.entries(projectGroups).map(([projectId, group]) => (
+              <ProjectSection
+                key={projectId}
+                title={group.title}
+                documents={group.docs}
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
+
+// ── Engagement document row ──────────────────────────────────────────
+
+function EngagementDocRow({ document: doc }: { document: DocumentWithProject }) {
+  const statusConfig = DOCUMENT_STATUSES[doc.status];
+  const engagementLabel = doc.engagement_type
+    ? ENGAGEMENT_TYPES[doc.engagement_type]?.label ?? "Other"
+    : "Other";
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 hover:border-border/80 transition-colors">
+      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-muted">
+        <FileText className="h-4 w-4 text-muted-foreground" />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {engagementLabel}
+          </span>
+          <p className="text-sm font-medium text-foreground truncate">
+            {doc.title}
+          </p>
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {formatFileSize(doc.file_size)} &middot; {formatDate(doc.created_at)}
+        </p>
+      </div>
+
+      <div className="flex-shrink-0">
+        <StatusBadge label={statusConfig.label} color={statusConfig.color} />
+      </div>
+
+      <DownloadButton filePath={doc.file_path} title={doc.title} />
+    </div>
+  );
+}
+
+// ── Collapsible project section ──────────────────────────────────────
+
+function ProjectSection({
+  title,
+  documents,
+}: {
+  title: string;
+  documents: DocumentWithProject[];
+}) {
+  return (
+    <details className="group rounded-lg border border-border bg-card" open>
+      <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 select-none list-none [&::-webkit-details-marker]:hidden">
+        <svg
+          className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-90"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <span className="text-xs text-muted-foreground">
+          ({documents.length})
+        </span>
+      </summary>
+      <div className="border-t border-border px-4 pb-3 pt-2 space-y-2">
+        {documents.map((doc) => (
+          <ProjectDocRow key={doc.id} document={doc} />
+        ))}
+      </div>
+    </details>
+  );
+}
+
+// ── Project document row ─────────────────────────────────────────────
+
+function ProjectDocRow({ document: doc }: { document: DocumentWithProject }) {
+  const statusConfig = DOCUMENT_STATUSES[doc.status];
+  const typeConfig = DOCUMENT_TYPES[doc.type];
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-card/50 px-4 py-2.5 hover:border-border/80 transition-colors">
+      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-muted">
+        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {typeConfig.label}
+          </span>
+          <p className="text-sm font-medium text-foreground truncate">
+            {doc.title}
+          </p>
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          v{doc.version} &middot; {formatFileSize(doc.file_size)} &middot;{" "}
+          {formatDate(doc.created_at)}
+        </p>
+      </div>
+
+      <div className="flex-shrink-0">
+        <StatusBadge label={statusConfig.label} color={statusConfig.color} />
+      </div>
+
+      <DownloadButton filePath={doc.file_path} title={doc.title} />
+    </div>
+  );
+}
+
