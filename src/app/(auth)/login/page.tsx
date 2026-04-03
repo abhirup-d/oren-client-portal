@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [usePassword, setUsePassword] = useState(true);
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,6 +20,24 @@ export default function LoginPage() {
     setError(null);
 
     const supabase = createClient();
+
+    if (usePassword) {
+      console.log("Attempting password login", { email, password: password ? "***" : "EMPTY" });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      setLoading(false);
+      if (error) {
+        console.error("Login error:", error.message);
+        setError(error.message);
+        return;
+      }
+      console.log("Login success, user:", data?.user?.id);
+      window.location.replace("/");
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -63,9 +83,29 @@ export default function LoginPage() {
               />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
+            {usePassword && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Sending..." : "Send login link"}
+              {loading ? "Signing in..." : usePassword ? "Sign in" : "Send login link"}
             </Button>
+            <button
+              type="button"
+              className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setUsePassword(!usePassword)}
+            >
+              {usePassword ? "Use magic link instead" : "Sign in with password"}
+            </button>
           </form>
         )}
 

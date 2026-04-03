@@ -27,7 +27,10 @@ export async function updateSession(request: NextRequest) {
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
+
+  console.log("[middleware]", request.nextUrl.pathname, { user: user?.id || null, error: authError?.message || null });
 
   const path = request.nextUrl.pathname;
 

@@ -163,7 +163,10 @@ export type Database = {
       documents: {
         Row: {
           id: string;
-          project_id: string;
+          project_id: string | null;
+          org_id: string | null;
+          category: "engagement" | "project";
+          engagement_type: "purchase_order" | "scope_of_work" | "nda" | "msa" | "proposal" | "other" | null;
           title: string;
           file_path: string;
           file_size: number;
@@ -177,21 +180,27 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          project_id: string;
+          project_id?: string | null;
+          org_id?: string | null;
+          category?: "engagement" | "project";
+          engagement_type?: "purchase_order" | "scope_of_work" | "nda" | "msa" | "proposal" | "other" | null;
           title: string;
           file_path: string;
           file_size: number;
           mime_type: string;
           type: "deliverable" | "working_doc";
           version?: number;
-          status: "draft" | "review" | "approved" | "final";
+          status?: "draft" | "review" | "approved" | "final";
           uploaded_by: string;
           uploaded_by_type: "client" | "admin";
           created_at?: string;
         };
         Update: {
           id?: string;
-          project_id?: string;
+          project_id?: string | null;
+          org_id?: string | null;
+          category?: "engagement" | "project";
+          engagement_type?: "purchase_order" | "scope_of_work" | "nda" | "msa" | "proposal" | "other" | null;
           title?: string;
           file_path?: string;
           file_size?: number;
