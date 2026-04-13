@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { NotificationBell } from "./notification-bell";
 
 interface TopbarProps {
@@ -21,6 +22,7 @@ export function Topbar({ userId }: TopbarProps) {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-end gap-2 border-b border-border bg-background px-4">
+      <ThemeToggle />
       <NotificationBell userId={userId} />
       <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign out">
         <LogOut className="h-5 w-5" />
