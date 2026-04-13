@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ADMIN_NAV_ITEMS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 
 interface AdminSidebarProps {
   adminName: string;
@@ -58,14 +59,17 @@ export function AdminSidebar({ adminName }: AdminSidebarProps) {
       </nav>
 
       {/* Bottom: admin info + sign out */}
-      <div className="border-t border-border px-4 py-3">
-        <p className="text-sm font-medium text-foreground truncate">{adminName}</p>
-        <button
-          onClick={handleSignOut}
-          className="mt-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Sign out
-        </button>
+      <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground truncate">{adminName}</p>
+          <button
+            onClick={handleSignOut}
+            className="mt-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
+        <ThemeToggle />
       </div>
     </aside>
   );
