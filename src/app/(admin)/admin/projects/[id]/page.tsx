@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { ProjectForm } from "@/components/admin/project-form";
+import { ProjectDocuments } from "@/components/client/project-documents";
 import type { Project } from "@/lib/supabase/types";
 
 interface PageProps {
@@ -29,6 +30,7 @@ export default async function EditProjectPage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Edit Project</h1>
+      <ProjectDocuments />
       <ProjectForm
         project={project as Project}
         organizations={organizations ?? []}
