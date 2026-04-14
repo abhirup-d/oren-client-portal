@@ -4,26 +4,37 @@ import { useRef, useState } from "react";
 import { FileText, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { Document } from "@/lib/supabase/types";
+
+/** Engagement types that map to each slot for DB lookups. */
+const SLOT_ENGAGEMENT_TYPES: Record<SlotKey, Document["engagement_type"][]> = {
+  proposal_sow: ["proposal", "scope_of_work"],
+  purchase_order: ["purchase_order"],
+  any_other: ["other", "nda", "msa"],
+};
 
 const SLOTS = [
   {
-    key: "proposal_sow",
+    key: "proposal_sow" as const,
     title: "Proposal / SoW",
-    description: "Upload signed Proposals and Statements of Work.",
+    descriptionAdmin: "Upload signed Proposals and Statements of Work.",
+    descriptionClient: "Proposals and Statements of Work uploaded by Oren.",
   },
   {
-    key: "purchase_order",
+    key: "purchase_order" as const,
     title: "Purchase Order",
-    description: "Upload Purchase Orders associated with this project.",
+    descriptionAdmin: "Upload Purchase Orders associated with this project.",
+    descriptionClient: "Purchase Orders uploaded by Oren.",
   },
   {
-    key: "any_other",
+    key: "any_other" as const,
     title: "Any Other Documents",
-    description: "Upload any other supporting project documents.",
+    descriptionAdmin: "Upload any other supporting project documents.",
+    descriptionClient: "Upload any other supporting project documents.",
   },
-] as const;
+];
 
-type SlotKey = (typeof SLOTS)[number]["key"];
+type SlotKey = "proposal_sow" | "purchase_order" | "any_other";
 type StagedFile = { id: string; name: string; size: number };
 type Staged = Record<SlotKey, StagedFile[]>;
 
@@ -33,7 +44,17 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function ProjectDocuments() {
+interface ProjectDocumentsProps {
+  /** "admin" = all slots uploadable, "client" = first 2 read-only, third uploadable. */
+  mode?: "admin" | "client";
+  /** Existing documents from DB (used in client mode to display admin-uploaded files). */
+  documents?: Document[];
+}
+
+export function ProjectDocuments({
+  mode = "admin",
+  documents = [],
+}: ProjectDocumentsProps) {
   const [staged, setStaged] = useState<Staged>({
     proposal_sow: [],
     purchase_order: [],
@@ -64,33 +85,115 @@ export function ProjectDocuments() {
     }));
   }
 
+  /** Get existing DB documents for a given slot key. */
+  function getDocsForSlot(key: SlotKey): Document[] {
+    const types = SLOT_ENGAGEMENT_TYPES[key];
+    return documents.filter(
+      (d) => d.engagement_type && types.includes(d.engagement_type)
+    );
+  }
+
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <h2 className="text-sm font-semibold text-foreground mb-4">
         Project Documents
       </h2>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {SLOTS.map((slot) => (
-          <UploadSlot
-            key={slot.key}
-            title={slot.title}
-            description={slot.description}
-            files={staged[slot.key]}
-            isDragOver={dragOver === slot.key}
-            onDragEnter={() => setDragOver(slot.key)}
-            onDragLeave={() => setDragOver((cur) => (cur === slot.key ? null : cur))}
-            onDrop={(files) => {
-              setDragOver(null);
-              addFiles(slot.key, files);
-            }}
-            onSelect={(files) => addFiles(slot.key, files)}
-            onRemove={(id) => removeFile(slot.key, id)}
-          />
-        ))}
+        {SLOTS.map((slot) => {
+          const isReadOnly =
+            mode === "client" && slot.key !== "any_other";
+          const description =
+            mode === "client" ? slot.descriptionClient : slot.descriptionAdmin;
+          const existingDocs = getDocsForSlot(slot.key);
+
+          if (isReadOnly) {
+            return (
+              <ReadOnlySlot
+                key={slot.key}
+                title={slot.title}
+                description={description}
+                documents={existingDocs}
+              />
+            );
+          }
+
+          return (
+            <UploadSlot
+              key={slot.key}
+              title={slot.title}
+              description={description}
+              files={staged[slot.key]}
+              isDragOver={dragOver === slot.key}
+              onDragEnter={() => setDragOver(slot.key)}
+              onDragLeave={() =>
+                setDragOver((cur) => (cur === slot.key ? null : cur))
+              }
+              onDrop={(files) => {
+                setDragOver(null);
+                addFiles(slot.key, files);
+              }}
+              onSelect={(files) => addFiles(slot.key, files)}
+              onRemove={(id) => removeFile(slot.key, id)}
+            />
+          );
+        })}
       </div>
     </div>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Read-only slot (client view for Proposal/SoW and Purchase Order)          */
+/* -------------------------------------------------------------------------- */
+
+interface ReadOnlySlotProps {
+  title: string;
+  description: string;
+  documents: Document[];
+}
+
+function ReadOnlySlot({ title, description, documents }: ReadOnlySlotProps) {
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-border bg-background/50 p-4">
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+      </div>
+
+      {documents.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border px-4 py-6 text-center">
+          <FileText className="h-5 w-5 text-muted-foreground/50" />
+          <span className="text-xs text-muted-foreground">
+            No documents uploaded yet
+          </span>
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {documents.map((doc) => (
+            <li
+              key={doc.id}
+              className="flex items-center justify-between gap-2 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs"
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <FileText className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                <span className="truncate text-foreground" title={doc.title}>
+                  {doc.title}
+                </span>
+              </div>
+              <span className="flex-shrink-0 text-muted-foreground">
+                {formatSize(doc.file_size)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Upload slot (admin: all slots, client: "Any Other Documents" only)        */
+/* -------------------------------------------------------------------------- */
 
 interface UploadSlotProps {
   title: string;
@@ -168,7 +271,6 @@ function UploadSlot({
         onChange={(e) => {
           if (e.target.files && e.target.files.length > 0) {
             onSelect(e.target.files);
-            // Reset so the same file can be re-selected later
             e.target.value = "";
           }
         }}
@@ -188,7 +290,9 @@ function UploadSlot({
                 </span>
               </div>
               <div className="flex flex-shrink-0 items-center gap-1.5">
-                <span className="text-muted-foreground">{formatSize(f.size)}</span>
+                <span className="text-muted-foreground">
+                  {formatSize(f.size)}
+                </span>
                 <Button
                   type="button"
                   variant="ghost"

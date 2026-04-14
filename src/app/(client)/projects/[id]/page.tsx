@@ -135,8 +135,8 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
-      {/* Project documents (Proposal/SoW, PO, Any Other) */}
-      <ProjectDocuments />
+      {/* Project documents: Proposal/SoW & PO read-only, Any Other uploadable */}
+      <ProjectDocuments mode="client" documents={documents} />
 
       {/* Phase timeline */}
       {project.phases.length > 0 && (
