@@ -8,6 +8,7 @@ import { TypeBadge } from "@/components/shared/type-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PhaseTimeline } from "@/components/client/phase-timeline";
+import { ProjectDocuments } from "@/components/client/project-documents";
 import { DocumentRow } from "@/components/client/document-row";
 import { ApprovalCard } from "@/components/client/approval-card";
 import { CommentThread } from "@/components/client/comment-thread";
@@ -133,6 +134,9 @@ export default function ProjectDetailPage() {
           <p className="text-sm text-muted-foreground">{project.description}</p>
         )}
       </div>
+
+      {/* Project documents (Proposal/SoW, PO, Any Other) */}
+      <ProjectDocuments />
 
       {/* Phase timeline */}
       {project.phases.length > 0 && (
